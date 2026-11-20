@@ -3,6 +3,10 @@
 .env.*
 !.env.example
 node_modules/
+
+# 运行时持久化数据（可从 data/sample-data.json 重建）
+data/store.json
+data/store.json.tmp
 .venv/
 __pycache__/
 .claude/

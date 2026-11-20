@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SLA 违约根因分析</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-title">
+      <span class="logo">🚨</span>
+      <div>
+        <h1 id="case-title">加载中…</h1>
+        <div class="subtitle" id="case-meta"></div>
+      </div>
+    </div>
+    <div class="topbar-actions">
+      <label class="tz-picker">
+        展示时区
+        <select id="display-tz">
+          <option value="UTC">UTC</option>
+          <option value="Asia/Shanghai">Asia/Shanghai</option>
+          <option value="America/New_York">America/New_York</option>
+          <option value="Europe/London">Europe/London</option>
+        </select>
+      </label>
+      <span class="version-badge" id="version-badge"></span>
+      <button class="btn" id="btn-add-evidence">＋ 新增证据重算</button>
+      <button class="btn ghost" id="btn-reset" title="用种子数据重建">重置演示</button>
+    </div>
+  </header>
+
+  <section class="kpi-row" id="kpi-row"></section>
+
+  <div id="banner-slot"></div>
+
+  <nav class="tabs" id="tabs">
+    <button class="tab active" data-tab="timeline">⏱ 时间线</button>
+    <button class="tab" data-tab="graph">🔗 依赖图</button>
+    <button class="tab" data-tab="candidates">🧭 根因候选</button>
+    <button class="tab" data-tab="remediation">🛠 处置状态</button>
+    <button class="tab" data-tab="versions">🗂 版本对比</button>
+  </nav>
+
+  <main>
+    <section class="panel active" id="panel-timeline"></section>
+    <section class="panel" id="panel-graph">
+      <div class="panel-hint">边方向：<b>A → B 表示 A 依赖 B</b>，故障沿 B 向 A 传播。虚线为非关键路径。点击节点查看该实体事件。</div>
+      <div id="graph-container"></div>
+      <div id="graph-detail" class="graph-detail hidden"></div>
+    </section>
+    <section class="panel" id="panel-candidates"></section>
+    <section class="panel" id="panel-remediation"></section>
+    <section class="panel" id="panel-versions"></section>
+  </main>
+
+  <dialog id="evidence-dialog">
+    <form method="dialog" class="dialog-body" id="evidence-form">
+      <h2>新增证据并重算</h2>
+      <p class="dialog-hint">提交后生成新版本快照；已有人工判定不会被覆盖，机器判断与人工分歧会显式标记。</p>
+      <label>事件 ID <input name="id" required placeholder="ev_new_1" /></label>
+      <label>实体
+        <select name="entityId" id="evidence-entity" required></select>
+      </label>
+      <label>事件类型
+        <select name="type" required>
+          <option value="delay">数据延迟 delay</option>
+          <option value="failure">任务失败 failure</option>
+          <option value="retry">重试 retry</option>
+          <option value="resource_wait">资源等待 resource_wait</option>
+          <option value="impact">业务影响 impact</option>
+          <option value="arrival">数据到达 arrival</option>
+          <option value="action">处置动作 action</option>
+        </select>
+      </label>
+      <div class="form-row">
+        <label>本地时间 <input name="localTime" required placeholder="2026-11-21T11:30:00" /></label>
+        <label>时区
+          <select name="zone" id="evidence-zone"></select>
+        </label>
+      </div>
+      <div class="form-row">
+        <label>延迟/等待分钟 <input name="minutes" type="number" min="0" placeholder="可选" /></label>
+        <label>来源 <input name="source" value="manual" /></label>
+      </div>
+      <label>描述 <textarea name="message" rows="2" placeholder="证据说明"></textarea></label>
+      <div class="dialog-actions">
+        <button type="button" class="btn ghost" id="evidence-cancel">取消</button>
+        <button type="submit" class="btn primary">提交并重算</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="diff-dialog"></dialog>
+
+  <footer class="footer">
+    纯原生 ESM · 零运行时依赖 · 所有时间先归一到 UTC 再分析，原始本地时间与时区保留可审计
+  </footer>
+
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

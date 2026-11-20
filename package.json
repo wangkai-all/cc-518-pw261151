@@ -1,0 +1,14 @@
+{
+  "name": "sla-breach-rca",
+  "version": "1.0.0",
+  "description": "SLA 违约根因分析工具：数据延迟 / 任务依赖 / 资源等待 / 业务影响的根因链分析",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test tests/"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT"
+}

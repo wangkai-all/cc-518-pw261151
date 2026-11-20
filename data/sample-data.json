@@ -1,0 +1,244 @@
+{
+  "caseId": "case-2026-11-21-exec-dashboard",
+  "title": "高管驾驶舱日报 SLA 违约（2026-11-21）",
+  "entities": [
+    { "id": "ds_sales_cn", "type": "dataset", "kind": "source", "name": "国内销售明细", "owner": "数据平台-王岚", "zone": "Asia/Shanghai" },
+    { "id": "ds_sales_eu", "type": "dataset", "kind": "source", "name": "欧洲销售明细", "owner": "Data EU", "zone": "UTC" },
+    { "id": "ds_sales_na", "type": "dataset", "kind": "source", "name": "北美销售明细", "owner": "Data NA", "zone": "America/New_York" },
+    { "id": "res_spark_pool", "type": "resource", "kind": "compute_pool", "name": "共享 Spark 计算池", "owner": "平台运维", "zone": "UTC" },
+    { "id": "task_ingest_cn", "type": "task", "kind": "etl", "name": "国内数据接入", "owner": "数据平台-王岚", "zone": "Asia/Shanghai" },
+    { "id": "task_ingest_na", "type": "task", "kind": "etl", "name": "北美数据接入", "owner": "Data NA", "zone": "America/New_York" },
+    { "id": "task_etl_merge", "type": "task", "kind": "etl", "name": "全球销售合并加工", "owner": "数仓组", "zone": "UTC" },
+    {
+      "id": "task_report_build",
+      "type": "task",
+      "kind": "sla",
+      "name": "驾驶舱日报构建",
+      "owner": "BI 组",
+      "zone": "Asia/Shanghai",
+      "metadata": { "slaDueLocal": "09:30", "slaDoc": "每日 09:30 (Asia/Shanghai) 前交付" }
+    },
+    {
+      "id": "svc_exec_dashboard",
+      "type": "service",
+      "kind": "report",
+      "name": "高管驾驶舱",
+      "owner": "BI 组",
+      "zone": "Asia/Shanghai",
+      "slaMinutes": 60
+    }
+  ],
+  "relations": [
+    { "from": "task_ingest_cn", "to": "ds_sales_cn", "type": "depends_on", "note": "国内源数据到达后启动" },
+    { "from": "task_ingest_na", "to": "ds_sales_na", "type": "depends_on" },
+    { "from": "task_etl_merge", "to": "task_ingest_cn", "type": "depends_on" },
+    { "from": "task_etl_merge", "to": "task_ingest_na", "type": "depends_on" },
+    { "from": "task_etl_merge", "to": "ds_sales_eu", "type": "depends_on", "critical": false, "note": "欧洲数据缺失时可用 T-1 兜底，非关键路径" },
+    { "from": "task_etl_merge", "to": "res_spark_pool", "type": "waits_for" },
+    { "from": "task_report_build", "to": "task_etl_merge", "type": "depends_on" },
+    { "from": "task_report_build", "to": "res_spark_pool", "type": "waits_for" },
+    { "from": "svc_exec_dashboard", "to": "task_report_build", "type": "depends_on" }
+  ],
+  "events": [
+    {
+      "id": "ev_dst_gap_probe",
+      "type": "arrival",
+      "entityId": "ds_sales_na",
+      "localTime": "2026-03-08T02:30:00",
+      "zone": "America/New_York",
+      "source": "history-probe",
+      "message": "历史探针：春令时前跳缺口时间（用于时区解析校验）"
+    },
+    {
+      "id": "ev_dst_ambiguous_probe",
+      "type": "arrival",
+      "entityId": "ds_sales_na",
+      "localTime": "2026-11-01T01:30:00",
+      "zone": "America/New_York",
+      "source": "history-probe",
+      "message": "历史探针：秋令时回拨歧义时间（用于时区解析校验）"
+    },
+    {
+      "id": "ev_eu_arrival",
+      "type": "arrival",
+      "entityId": "ds_sales_eu",
+      "localTime": "2026-11-20T19:00:00",
+      "zone": "UTC",
+      "source": "kafka-eu",
+      "message": "欧洲数据按时到达"
+    },
+    {
+      "id": "ev_cn_delay",
+      "type": "delay",
+      "entityId": "ds_sales_cn",
+      "localTime": "2026-11-21T02:10:00",
+      "zone": "Asia/Shanghai",
+      "delayMinutes": 45,
+      "source": "monitor-cn",
+      "message": "上游 CDC 同步积压，国内销售明细延迟 45 分钟"
+    },
+    {
+      "id": "ev_cn_arrival",
+      "type": "arrival",
+      "entityId": "ds_sales_cn",
+      "localTime": "2026-11-21T02:52:00",
+      "zone": "Asia/Shanghai",
+      "source": "monitor-cn",
+      "message": "国内数据实际到达"
+    },
+    {
+      "id": "ev_cn_ingest_delay",
+      "type": "delay",
+      "entityId": "task_ingest_cn",
+      "localTime": "2026-11-21T03:05:00",
+      "zone": "Asia/Shanghai",
+      "delayMinutes": 25,
+      "source": "scheduler",
+      "message": "国内接入任务因源数据迟到整体顺延 25 分钟"
+    },
+    {
+      "id": "ev_pool_wait",
+      "type": "resource_wait",
+      "entityId": "res_spark_pool",
+      "localTime": "2026-11-20T19:30:00",
+      "zone": "UTC",
+      "waitMinutes": 38,
+      "source": "monitor-yarn",
+      "message": "Spark 计算池排队，等待可用 executor"
+    },
+    {
+      "id": "ev_pool_wait_repeat",
+      "type": "resource_wait",
+      "entityId": "res_spark_pool",
+      "localTime": "2026-11-20T19:40:00",
+      "zone": "UTC",
+      "waitMinutes": 38,
+      "source": "monitor-yarn",
+      "message": "Spark 计算池排队，等待可用 executor"
+    },
+    {
+      "id": "ev_pool_release",
+      "type": "resource_release",
+      "entityId": "res_spark_pool",
+      "localTime": "2026-11-20T20:08:00",
+      "zone": "UTC",
+      "source": "monitor-yarn",
+      "message": "executor 释放，排队结束"
+    },
+    {
+      "id": "ev_na_fail",
+      "type": "failure",
+      "entityId": "task_ingest_na",
+      "localTime": "2026-11-20T20:05:00",
+      "zone": "America/New_York",
+      "delayMinutes": 35,
+      "source": "monitor-us",
+      "fingerprintKey": "fp-na-ingest-fail",
+      "message": "北美接入失败：S3 限流 AccessDenied，尝试重试"
+    },
+    {
+      "id": "ev_na_fail_mirror",
+      "type": "failure",
+      "entityId": "task_ingest_na",
+      "localTime": "2026-11-21T01:05:00",
+      "zone": "UTC",
+      "delayMinutes": 35,
+      "source": "monitor-global",
+      "fingerprintKey": "fp-na-ingest-fail",
+      "message": "北美接入失败：S3 限流 AccessDenied，尝试重试（全球视图镜像）"
+    },
+    {
+      "id": "ev_na_retry",
+      "type": "retry",
+      "entityId": "task_ingest_na",
+      "localTime": "2026-11-20T20:20:00",
+      "zone": "America/New_York",
+      "source": "monitor-us",
+      "message": "第 2 次尝试接入北美数据"
+    },
+    {
+      "id": "ev_na_finish",
+      "type": "finish",
+      "entityId": "task_ingest_na",
+      "localTime": "2026-11-20T20:48:00",
+      "zone": "America/New_York",
+      "source": "monitor-us",
+      "message": "北美接入恢复完成"
+    },
+    {
+      "id": "ev_merge_start",
+      "type": "start",
+      "entityId": "task_etl_merge",
+      "localTime": "2026-11-20T20:10:00",
+      "zone": "UTC",
+      "source": "scheduler",
+      "message": "合并加工启动（已拿到计算资源）"
+    },
+    {
+      "id": "ev_merge_retry",
+      "type": "retry",
+      "entityId": "task_etl_merge",
+      "localTime": "2026-11-20T20:30:00",
+      "zone": "UTC",
+      "source": "scheduler",
+      "message": "合并任务 Stage 重试一次"
+    },
+    {
+      "id": "ev_merge_finish",
+      "type": "finish",
+      "entityId": "task_etl_merge",
+      "localTime": "2026-11-20T21:05:00",
+      "zone": "UTC",
+      "source": "scheduler",
+      "message": "全球销售合并加工完成"
+    },
+    {
+      "id": "ev_report_start",
+      "type": "start",
+      "entityId": "task_report_build",
+      "localTime": "2026-11-21T09:50:00",
+      "zone": "Asia/Shanghai",
+      "source": "scheduler",
+      "message": "日报构建启动"
+    },
+    {
+      "id": "ev_report_finish",
+      "type": "finish",
+      "entityId": "task_report_build",
+      "localTime": "2026-11-21T10:42:00",
+      "zone": "Asia/Shanghai",
+      "source": "scheduler",
+      "message": "日报构建完成，晚于 09:30 交付线"
+    },
+    {
+      "id": "ev_svc_breach",
+      "type": "sla_breach",
+      "entityId": "svc_exec_dashboard",
+      "localTime": "2026-11-21T10:42:00",
+      "zone": "Asia/Shanghai",
+      "delayMinutes": 72,
+      "severity": "critical",
+      "source": "sla-watchdog",
+      "message": "高管驾驶舱 SLA 违约：交付延迟 72 分钟"
+    },
+    {
+      "id": "ev_svc_impact",
+      "type": "impact",
+      "entityId": "svc_exec_dashboard",
+      "localTime": "2026-11-21T11:00:00",
+      "zone": "Asia/Shanghai",
+      "severity": "high",
+      "source": "business-monitor",
+      "message": "高管早会无法查看当日经营数据，3 个业务部门受影响"
+    },
+    {
+      "id": "ev_action_pool_scale",
+      "type": "action",
+      "entityId": "res_spark_pool",
+      "localTime": "2026-11-21T11:10:00",
+      "zone": "Asia/Shanghai",
+      "source": "oncall",
+      "message": "值班扩容 Spark 池至 128 executor，排队缓解"
+    }
+  ]
+}
